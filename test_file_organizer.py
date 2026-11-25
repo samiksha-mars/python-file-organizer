@@ -62,6 +62,16 @@ class OrganizeTest(unittest.TestCase):
 
             self.assertEqual(moved, [("readme.md", "documents")])
 
+    def test_reports_files_in_sorted_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            for name in ("c.txt", "a.png", "b.mp3"):
+                (directory / name).write_text("x")
+
+            moved = organize(directory)
+
+            self.assertEqual([name for name, _ in moved], ["a.png", "b.mp3", "c.txt"])
+
     def test_does_not_overwrite_existing_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)

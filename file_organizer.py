@@ -47,7 +47,9 @@ def organize(directory: Path, dry_run: bool = False) -> list[tuple[str, str]]:
     """
     directory = directory.resolve()
     moved: list[tuple[str, str]] = []
-    for item in directory.iterdir():
+    # Take a sorted snapshot first: the loop adds and removes entries in
+    # ``directory``, and sorting gives a predictable order for the output.
+    for item in sorted(directory.iterdir()):
         if item.is_file() and not item.name.startswith("."):
             category = categorize(item.suffix)
             if not dry_run:
