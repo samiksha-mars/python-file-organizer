@@ -25,8 +25,22 @@ def categorize(suffix: str) -> str:
     return "others"
 
 
+def unique_destination(target_dir: Path, name: str) -> Path:
+    """Return ``target_dir / name``, adding " (1)", " (2)", ... if that path is taken."""
+    destination = target_dir / name
+    stem, suffix = destination.stem, destination.suffix
+    counter = 1
+    while destination.exists():
+        destination = target_dir / f"{stem} ({counter}){suffix}"
+        counter += 1
+    return destination
+
+
 def organize(directory: Path, dry_run: bool = False) -> list[tuple[str, str]]:
     """Move files in ``directory`` into category subfolders.
+
+    Existing files are never overwritten: if the category folder already holds a
+    file with the same name, the moved file gets a numbered name instead.
 
     Returns a list of ``(filename, category)`` tuples.
     """
@@ -38,7 +52,7 @@ def organize(directory: Path, dry_run: bool = False) -> list[tuple[str, str]]:
             if not dry_run:
                 target_dir = directory / category
                 target_dir.mkdir(exist_ok=True)
-                shutil.move(str(item), str(target_dir / item.name))
+                shutil.move(str(item), str(unique_destination(target_dir, item.name)))
             moved.append((item.name, category))
     return moved
 

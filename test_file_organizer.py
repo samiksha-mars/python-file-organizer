@@ -60,6 +60,21 @@ class OrganizeTest(unittest.TestCase):
 
             self.assertEqual(moved, [("readme.md", "documents")])
 
+    def test_does_not_overwrite_existing_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "images").mkdir()
+            (directory / "images" / "photo.jpg").write_text("old")
+            (directory / "images" / "photo (1).jpg").write_text("older")
+            (directory / "photo.jpg").write_text("new")
+
+            organize(directory)
+
+            self.assertEqual((directory / "images" / "photo.jpg").read_text(), "old")
+            self.assertEqual((directory / "images" / "photo (1).jpg").read_text(), "older")
+            self.assertEqual((directory / "images" / "photo (2).jpg").read_text(), "new")
+            self.assertFalse((directory / "photo.jpg").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

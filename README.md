@@ -9,7 +9,8 @@ Uses only the Python standard library.
 - Groups files by type (images, documents, spreadsheets, audio, video, archives, code)
 - `--dry-run` mode to preview changes without moving anything
 - Ignores hidden files
-- Safe: only moves regular files, creates target folders as needed
+- Safe: only moves regular files, creates target folders as needed, and never overwrites
+  an existing file (a clash is renamed, e.g. `photo.jpg` becomes `photo (1).jpg`)
 
 ## Usage
 
