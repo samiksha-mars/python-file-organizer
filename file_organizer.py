@@ -3,6 +3,7 @@
 
 import argparse
 import shutil
+import sys
 from pathlib import Path
 
 CATEGORIES: dict[str, set[str]] = {
@@ -57,26 +58,35 @@ def organize(directory: Path, dry_run: bool = False) -> list[tuple[str, str]]:
     return moved
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Organize files into category subfolders based on extension.")
     parser.add_argument("directory", nargs="?", default=".",
                         help="Directory to organize (default: current directory)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be moved without actually moving anything")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    moved = organize(Path(args.directory), dry_run=args.dry_run)
+    directory = Path(args.directory)
+    if not directory.is_dir():
+        parser.error(f"not a directory: {args.directory}")
+
+    try:
+        moved = organize(directory, dry_run=args.dry_run)
+    except OSError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
     if not moved:
         print("No files to organize.")
-        return
+        return 0
 
     action = "would be moved" if args.dry_run else "moved"
     for name, category in moved:
         print(f"{name} -> {category}/")
     print(f"{len(moved)} file(s) {action}.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

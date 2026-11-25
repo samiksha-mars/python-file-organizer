@@ -1,8 +1,10 @@
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from file_organizer import categorize, organize
+from file_organizer import categorize, main, organize
 
 
 class CategorizeTest(unittest.TestCase):
@@ -74,6 +76,39 @@ class OrganizeTest(unittest.TestCase):
             self.assertEqual((directory / "images" / "photo (1).jpg").read_text(), "older")
             self.assertEqual((directory / "images" / "photo (2).jpg").read_text(), "new")
             self.assertFalse((directory / "photo.jpg").exists())
+
+
+class MainTest(unittest.TestCase):
+
+    def run_main(self, argv):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            try:
+                code = main(argv)
+            except SystemExit as exc:
+                code = exc.code
+        return code, out.getvalue(), err.getvalue()
+
+    def test_dry_run_reports_without_moving(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "photo.jpg").write_text("x")
+            code, out, _ = self.run_main([tmp, "--dry-run"])
+            self.assertTrue((Path(tmp) / "photo.jpg").exists())
+        self.assertEqual(code, 0)
+        self.assertIn("photo.jpg -> images/", out)
+        self.assertIn("1 file(s) would be moved.", out)
+
+    def test_empty_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out, _ = self.run_main([tmp])
+        self.assertEqual(code, 0)
+        self.assertIn("No files to organize.", out)
+
+    def test_missing_directory_is_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, _, err = self.run_main([str(Path(tmp) / "missing")])
+        self.assertEqual(code, 2)
+        self.assertIn("not a directory", err)
 
 
 if __name__ == "__main__":
