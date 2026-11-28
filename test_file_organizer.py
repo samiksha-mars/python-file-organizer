@@ -87,6 +87,20 @@ class OrganizeTest(unittest.TestCase):
             self.assertEqual((directory / "images" / "photo (2).jpg").read_text(), "new")
             self.assertFalse((directory / "photo.jpg").exists())
 
+    def test_blocked_category_skips_only_that_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            for name in ("a.txt", "others", "z.jpg"):
+                (directory / name).write_text("x")
+            errors = []
+
+            moved = organize(directory, on_error=lambda path, error: errors.append(path.name))
+
+            self.assertEqual(moved, [("a.txt", "documents"), ("z.jpg", "images")])
+            self.assertEqual(errors, ["others"])
+            self.assertTrue((directory / "images" / "z.jpg").exists())
+            self.assertTrue((directory / "others").is_file())
+
 
 class MainTest(unittest.TestCase):
 
@@ -107,6 +121,19 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("photo.jpg -> images/", out)
         self.assertIn("1 file(s) would be moved.", out)
+
+    def test_unmovable_file_is_reported_and_others_still_move(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("a.txt", "others", "z.jpg"):
+                (Path(tmp) / name).write_text("x")
+            code, out, err = self.run_main([tmp])
+            self.assertTrue((Path(tmp) / "images" / "z.jpg").exists())
+        self.assertEqual(code, 1)
+        self.assertIn("a.txt -> documents/", out)
+        self.assertIn("z.jpg -> images/", out)
+        self.assertIn("2 file(s) moved.", out)
+        self.assertIn("could not move others: others exists and is not a folder", err)
+        self.assertIn("1 file(s) could not be moved.", err)
 
     def test_empty_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

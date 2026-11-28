@@ -37,13 +37,17 @@ def unique_destination(target_dir: Path, name: str) -> Path:
     return destination
 
 
-def organize(directory: Path, dry_run: bool = False) -> list[tuple[str, str]]:
+def organize(directory: Path, dry_run: bool = False, on_error=None) -> list[tuple[str, str]]:
     """Move files in ``directory`` into category subfolders.
 
     Existing files are never overwritten: if the category folder already holds a
     file with the same name, the moved file gets a numbered name instead.
 
-    Returns a list of ``(filename, category)`` tuples.
+    A file that cannot be moved (for example because a regular file is in the way
+    of its category folder) is skipped and passed to ``on_error(path, error)``;
+    the remaining files are still organized.
+
+    Returns a list of ``(filename, category)`` tuples for the files that moved.
     """
     directory = directory.resolve()
     moved: list[tuple[str, str]] = []
@@ -54,8 +58,15 @@ def organize(directory: Path, dry_run: bool = False) -> list[tuple[str, str]]:
             category = categorize(item.suffix)
             if not dry_run:
                 target_dir = directory / category
-                target_dir.mkdir(exist_ok=True)
-                shutil.move(str(item), str(unique_destination(target_dir, item.name)))
+                try:
+                    if target_dir.exists() and not target_dir.is_dir():
+                        raise NotADirectoryError(f"{target_dir.name} exists and is not a folder")
+                    target_dir.mkdir(exist_ok=True)
+                    shutil.move(str(item), str(unique_destination(target_dir, item.name)))
+                except OSError as error:
+                    if on_error:
+                        on_error(item, error)
+                    continue
             moved.append((item.name, category))
     return moved
 
@@ -73,13 +84,19 @@ def main(argv: list[str] | None = None) -> int:
     if not directory.is_dir():
         parser.error(f"not a directory: {args.directory}")
 
+    failed: list[str] = []
+
+    def report(path: Path, error: OSError) -> None:
+        failed.append(path.name)
+        print(f"Warning: could not move {path.name}: {error.strerror or error}", file=sys.stderr)
+
     try:
-        moved = organize(directory, dry_run=args.dry_run)
+        moved = organize(directory, dry_run=args.dry_run, on_error=report)
     except OSError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
-    if not moved:
+    if not moved and not failed:
         print("No files to organize.")
         return 0
 
@@ -87,6 +104,9 @@ def main(argv: list[str] | None = None) -> int:
     for name, category in moved:
         print(f"{name} -> {category}/")
     print(f"{len(moved)} file(s) {action}.")
+    if failed:
+        print(f"{len(failed)} file(s) could not be moved.", file=sys.stderr)
+        return 1
     return 0
 
 

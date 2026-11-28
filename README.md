@@ -11,6 +11,8 @@ Uses only the Python standard library.
 - Ignores hidden files
 - Safe: only moves regular files, creates target folders as needed, and never overwrites
   an existing file (a clash is renamed, e.g. `photo.jpg` becomes `photo (1).jpg`)
+- A file that cannot be moved is reported and skipped; the rest are still organized,
+  and the exit status is 1 so scripts can notice
 
 ## Usage
 
